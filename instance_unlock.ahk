@@ -4,6 +4,7 @@
 ; 3. Click the 🔒Unlock button
 ; 4. Repeat steps 1-3 for as many clients as you'd like
 
+; instance.unlock Github page: https://github.com/DartsOSRS/instance.unlock
 ; Credits to T-vK for creating 'WhoLockedMe' which this script is forked from: https://github.com/T-vK/WhoLockedMe/
 
 #NoEnv

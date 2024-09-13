@@ -1,41 +1,14 @@
-## WhoLockedMe
+## instance.unlock
+Allows the user to bypass the 16-client limit for RuneScape 3
 
-#### What does it do?
-Lists of all files and ports that are currently being used/bloked by any process.  
-Using the instant filter you can easily find out what is responsible for locking a file.  
-You can easily close the handles without killing the processes. The tool also allows you to kill the processes though.
+#### Instructions
+1. Launch RuneScape 3 clients until you hit the limit
+2. Run this script, or click the Refresh button if it was already running
+3. Click the 🔒Unlock button
+4. Repeat steps 1-3 for as many clients as you'd like
 
 #### Credits
- * Credits to HotkeyIt for the super complicated handle retrievement!
- * Credits to "just me" for translating all the handle retrievement stuff into AHK 1.1 and also for GetPathNameByHandle and GetIconByPath and other valuable info about icons in AHK and File System Redirection!
- * Credits to jNizM for a lot of valuable input and research, QueryDosDevice and fine-tuning of GetExtendedTcpTable and GetProcessFilePath!
- * If your name, someone elses name or anything else is missing from this list, tell me please!
-
-#### Links
- * [Development topic on autohotkey.com](https://autohotkey.com/boards/viewtopic.php?p=80447)
- * [Release topic on autohotkey.com](https://autohotkey.com/boards/viewtopic.php?p=80455)
- * [The C++ code that has been translated to AHK code for the handle retrievement](http://forums.codeguru.com/showthread.php?176997.html)
+ * Credits to T-vK for creating [WhoLockedMe](https://github.com/T-vK/WhoLockedMe/) which this script is forked from
 
 #### Requirements
-The script requires AHK 1.1. An older version that works for AHK_H can be found in the subfolder /AHK_H.
-If you just want to test it you can download the compiled version. (See link below)
-
-#### Future ideas include:
-- only show handles that are definitely locking a file
-- in the network port tab, show more info like IP addresses and remote ports
-- also show udp ports, not only tcp
-- option to force a process to stop listenting on a certain port
-- context menu for the listview
-- smaller buttons
-
-#### Downloads
-[Download latest version of the script](WhoLockedMe.ahk?raw=true)  
-[Downlaod compiled 32bit version](WhoLockedMe.exe?raw=true)  
-[Downlaod compiled 64bit version](WhoLockedMe_64bit.exe?raw=true)  
-[Downlaod reporsitory](https://github.com/T-vK/WhoLockedMe/archive/master.zip)
-
-#### Screenshots
-![Screenshot](Screenshots/Screenshot1.png)
-![Screenshot](Screenshots/Screenshot2.png)
-![Screenshot](Screenshots/Screenshot3.png)
-![Screenshot](Screenshots/Screenshot4.png)
+The script requires AutoHotKey 1.1

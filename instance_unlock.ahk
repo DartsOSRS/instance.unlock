@@ -1,13 +1,10 @@
-;#### Credits
-; * Credits to HotkeyIt for the super complicated handle retrievement!
-; * Credits to "just me" for translating all the handle retrievement stuff into AHK 1.1 and also for GetPathNameByHandle and GetIconByPath and other valuable info about icons in AHK and File System Redirection!
-; * Credits to jNizM for a lot of valuable input and research, QueryDosDevice and fine-tuning of GetExtendedTcpTable and GetProcessFilePath!
-; * If your name, someone elses name or anything else is missing from this list, tell me please!
-; 
-;#### Links
-; * [Development topic on autohotkey.com](https://autohotkey.com/boards/viewtopic.php?p=80447)
-; * [Release topic on autohotkey.com](https://autohotkey.com/boards/viewtopic.php?p=80455)
-; * [The C++ code that has been translated to AHK code for the handle retrievement](http://forums.codeguru.com/showthread.php?176997.html)
+; Instructions: 
+; 1. Launch RuneScape 3 clients until you hit the limit of 16
+; 2. Run this script, or click the Refresh button if it was already running
+; 3. Click the 🔒Unlock button
+; 4. Repeat steps 1-3 for as many clients as you'd like
+
+; Credits to T-vK for creating 'WhoLockedMe' which this script is forked from: https://github.com/T-vK/WhoLockedMe/
 
 #NoEnv
 SetBatchLines, -1
@@ -18,138 +15,20 @@ If (A_Is64bitOS && (A_PtrSize = 4))
     DllCall("Wow64DisableWow64FsRedirection", "UInt*", OldValue)
 File := FileOpen(A_ScriptFullPath, "r") ; cause this script to appear in the list
 ; ==================================================================================================================================
-Gui, Add, Tab2, w644 h627, File Handles|Network Ports
-Gui, Tab, 1
-    Gui, Add, Edit, w620 r1 gGui_FileHandles_CtrlEvt vGui_FileHandles_ApplyFilter
-    Gui, Add, ListView, w620 r25 gGui_FileHandles_CtrlEvt vGui_FileHandles_LV +LV0x00000400, Potentially locked|By|PID|Handle
-    LV_ModifyCol(1,349), LV_ModifyCol(2,150), LV_ModifyCol(3,50), LV_ModifyCol(4,50)
-    Gui, Add, Button, w620 gGui_FileHandles_CtrlEvt vGui_FileHandles_ReloadData, Reload
-    Gui, Add, Button, w620 gGui_FileHandles_CtrlEvt vGui_FileHandles_CloseHandle, Close Handle
-    Gui, Add, Button, w620 gGui_FileHandles_CtrlEvt vGui_FileHandles_CloseProcess, Close Process
-    Gui, Add, Progress, w620 vGui_FileHandles_ProgressBar
-Gui, Tab, 2
-    Gui, Add, Edit, w620 r1 gGui_NetworkPorts_CtrlEvt vGui_NetworkPorts_ApplyFilter
-    Gui, Add, ListView, w620 r25 gGui_NetworkPorts_CtrlEvt vGui_NetworkPorts_LV +LV0x00000400, Port blocked|By|PID
-    LV_ModifyCol(1,80), LV_ModifyCol(2,200), LV_ModifyCol(3,50)
-    ; TODO: Add columns for remote port and IP addresses
-    Gui, Add, Button, w620 gGui_NetworkPorts_CtrlEvt vGui_NetworkPorts_ReloadData, Reload
-    Gui, Add, Button, w620 gGui_NetworkPorts_CtrlEvt vGui_NetworkPorts_ReleasePort, Release Port
-    Gui, Add, Button, w620 gGui_NetworkPorts_CtrlEvt vGui_NetworkPorts_CloseProcess, Close Process
-    Gui, Add, Progress, w620 vGui_NetworkPorts_ProgressBar
-Gui, Show,, WhoLockedMe
+    Gui, Add, Edit, ReadOnly w452 r1 gGui_FileHandles_CtrlEvt vGui_FileHandles_ApplyFilter, C:\ProgramData\Jagex\launcher\instance.lock
+    Gui, Add, Button, w452 gGui_FileHandles_CtrlEvt vGui_FileHandles_ReloadData, Refresh
+    Gui, Add, ListView, w452 r15 gGui_FileHandles_CtrlEvt vGui_FileHandles_LV, Path|Process|PID|Handle
+    LV_ModifyCol(1,234), LV_ModifyCol(2,100), LV_ModifyCol(3,50), LV_ModifyCol(4,50)
+    Gui, Add, Button, +Disabled w452 h50 gGui_FileHandles_CtrlEvt vGui_FileHandles_CloseHandles, 🔓Unlocked
+    Gui, Add, Progress, w452 vGui_FileHandles_ProgressBar
+    Gui, +ToolWindow
+    Gui, Show,, instance.unlock
 
 Gui_FileHandles_CtrlEvt("Gui_FileHandles_ReloadData")
-Gui_NetworkPorts_CtrlEvt("Gui_NetworkPorts_ReloadData")
 
-
-; ==================================================================================================================================
-Gui_NetworkPorts_CtrlEvt(CtrlHwnd:=0, GuiEvent:="", EventInfo:="", ErrLvl:="") {
-    Static DataArray := []
-    Static IconObject := {}
-    Static ImageListID := 0
-    If (A_DefaultListView != "Gui_NetworkPorts_LV")
-        Gui, ListView, Gui_NetworkPorts_LV
-    GuiControlGet, ControlName, Name, %CtrlHwnd%
-    If (ControlName = "Gui_NetworkPorts_ApplyFilter") {
-        GuiControlGet, Gui_NetworkPorts_ApplyFilter
-        LV_Delete()
-        GuiControl, -Redraw, Gui_NetworkPorts_LV
-        Loop % DataArray.Length() {
-            Data := DataArray[A_Index]
-            Port := Data.LocalPort
-            If (InStr(Port, Gui_NetworkPorts_ApplyFilter))
-                LV_Add("Icon" Data.IconIndex, Data.LocalPort, Data.ProcName, Data.PID)
-        }
-        GuiControl, +Redraw, Gui_NetworkPorts_LV
-    } Else If (ControlName = "Gui_NetworkPorts_ReloadData") {
-        LV_Delete()
-        If (ImageListID)
-            IL_Destroy(ImageListID)
-        ImageListID := IL_Create(100, 10)
-        LV_SetImageList(ImageListID)
-        GuiControl, , Gui_NetworkPorts_ProgressBar, 0
-        DataArray := GetExtendedTcpTable()
-        DataArrayCount := DataArray.Length()
-        Loop % DataArrayCount {
-            GuiControl, , Gui_NetworkPorts_ProgressBar, % A_Index/DataArrayCount*100
-            
-            DataArray[A_Index].PID := DataArray[A_Index].OwningPid
-            If (DataArray[A_Index].PID = 0)
-                DataArray[A_Index].ProcName := "[System Process]"
-            Else If (DataArray[A_Index].PID = 4)
-                DataArray[A_Index].ProcName := "System"
-            Else {
-                DataArray[A_Index].FilePath := GetProcessFilePathByPID(DataArray[A_Index].PID)
-                SplitPath, % DataArray[A_Index].FilePath, ProcessName
-                If !ProcessName
-                     WinGet, ProcessName, ProcessName, % "ahk_pid " DataArray[A_Index].PID
-                ; TODO: find out why that's still not enough to get them all
-                DataArray[A_Index].ProcName := ProcessName
-                DataArray[A_Index].Exists := FileExist(DataArray[A_Index].FilePath)
-            }
-            
-            Data := DataArray[A_Index]
-            IconObjectId := Data.Exists ? Data.FilePath : "\\DELETED"
-            If IconObject[IconObjectId]
-                DataArray[A_Index].IconIndex := IconObject[IconObjectId]
-            Else
-                IconObject[IconObjectId] := DataArray[A_Index].IconIndex := IL_Add(ImageListID, "HICON:" . GetIconByPath(Data.FilePath, Data.FileExists))
-        }
-        Gui_NetworkPorts_CtrlEvt("Gui_NetworkPorts_ApplyFilter")
-    } Else If (ControlName = "Gui_NetworkPorts_ReleasePort") {
-        ;RowNumber := 0
-        ;Loop {
-        ;    RowNumber := LV_GetNext(RowNumber)
-        ;    If !RowNumber
-        ;         Break
-        ;    LV_GetText(Port, RowNumber, 1)
-        ;    LV_GetText(PID, RowNumber, 3)
-        ;    
-        ;    If PortClosed {
-        ;        LV_GetText(Name, RowNumber, 2)
-        ;        MsgBox, Error: Unable to release port %Port% used by %Name% (PID: %PID%)!
-        ;    } Else {
-        ;        i := 1
-        ;        Loop % DataArray.Length() {
-        ;            If (DataArray[i].Handle = Handle)
-        ;                DataArray.RemoveAt(i)
-        ;            Else
-        ;                i++
-        ;        }
-        ;    }
-        ;}
-        ;Gui_NetworkPorts_CtrlEvt("Gui_NetworkPorts_ApplyFilter")
-        MsgBox, Not implemented yet!
-    } Else If (ControlName = "Gui_NetworkPorts_CloseProcess") {
-        RowNumber := 0
-        Loop {
-            RowNumber := LV_GetNext(RowNumber)
-            If !RowNumber
-                 Break
-            LV_GetText(PID, RowNumber, 3)
-            Process, Close, %PID%
-            ;Process, WaitClose, %PID%, 5 ;wait up to 5 secs until process closes
-            ;If ErrorLevel {
-            ;    LV_GetText(Name, RowNumber, 2)
-            ;    MsgBox, Error: Unable to close %Name% (PID: %PID%)!
-            ;Else {
-                i := 1
-                Loop % DataArray.Length() {
-                    If (DataArray[i].PID = PID)
-                        DataArray.RemoveAt(i)
-                    Else
-                        i++
-                }
-            ;}
-        }
-        Gui_NetworkPorts_CtrlEvt("Gui_NetworkPorts_ApplyFilter")
-    }
-}
 ; ==================================================================================================================================
 Gui_FileHandles_CtrlEvt(CtrlHwnd:=0, GuiEvent:="", EventInfo:="", ErrLvl:="") {
     Static DataArray := []
-    Static IconObject := {}
-    Static ImageListID := 0
     If (A_DefaultListView != "Gui_FileHandles_LV")
         Gui, ListView, Gui_FileHandles_LV
     GuiControlGet, ControlName, Name, %CtrlHwnd%
@@ -161,15 +40,18 @@ Gui_FileHandles_CtrlEvt(CtrlHwnd:=0, GuiEvent:="", EventInfo:="", ErrLvl:="") {
             Data := DataArray[A_Index]
             FilePath := Data.FilePath ? Data.FilePath : Data.DevicePath
             If (InStr(FilePath, Gui_FileHandles_ApplyFilter))
-                LV_Add("Icon" Data.IconIndex, FilePath, Data.ProcName, Data.PID, Data.Handle)
+                LV_Add(, FilePath, Data.ProcName, Data.PID, Data.Handle)
         }
         GuiControl, +Redraw, Gui_FileHandles_LV
+        if (LV_GetCount() != 0) {
+            GuiControl, Enable, Gui_FileHandles_CloseHandles
+            GuiControl,, Gui_FileHandles_CloseHandles, 🔒Unlock
+        } else {
+            GuiControl, Disable, Gui_FileHandles_CloseHandles
+            GuiControl,, Gui_FileHandles_CloseHandles, 🔓Unlocked
+        }
     } Else If (ControlName = "Gui_FileHandles_ReloadData") {
         LV_Delete()
-        If (ImageListID)
-            IL_Destroy(ImageListID)
-        ImageListID := IL_Create(1000, 100)
-        LV_SetImageList(ImageListID)
         Callback := Func("FileHandleCallback")
         DataArray := GetAllFileHandleInfo(Callback)
         GuiControl, , Gui_FileHandles_ProgressBar, 0
@@ -177,28 +59,19 @@ Gui_FileHandles_CtrlEvt(CtrlHwnd:=0, GuiEvent:="", EventInfo:="", ErrLvl:="") {
         Loop % DataArrayCount {
             GuiControl, , Gui_FileHandles_ProgressBar, % A_Index/DataArrayCount*100
             Data := DataArray[A_Index]
-            IconObjectId := Data.Exists ? Data.FilePath : "\\DELETED"
-            If IconObject[IconObjectId]
-                DataArray[A_Index].IconIndex := IconObject[IconObjectId]
-            Else
-                IconObject[IconObjectId] :=  DataArray[A_Index].IconIndex := IL_Add(ImageListID, "HICON:" . GetIconByPath(Data.FilePath, Data.FileExists))
         }
         Gui_FileHandles_CtrlEvt("Gui_FileHandles_ApplyFilter")
-    } Else If (ControlName = "Gui_FileHandles_CloseHandle") {
-        RowNumber := 0
-        Loop {
-            RowNumber := LV_GetNext(RowNumber)
-            If !RowNumber
-                 Break
-            LV_GetText(Handle, RowNumber, 4)
-            LV_GetText(PID, RowNumber, 3)
+    } Else If (ControlName = "Gui_FileHandles_CloseHandles") {
+        Loop % LV_GetCount(){
+            LV_GetText(Handle, A_Index, 4)
+            LV_GetText(PID, A_Index, 3)
             
             ProcHandle := OpenProcess(PID, 0x40)
             HandleClosed := DuplicateObject(ProcHandle, 0, Handle, 0x1) ; Close handle
             
             If HandleClosed {
-                LV_GetText(Path, RowNumber, 1)
-                LV_GetText(Name, RowNumber, 2)
+                LV_GetText(Path, A_Index, 1)
+                LV_GetText(Name, A_Index, 2)
                 MsgBox, Error: Unable to close %Name%'s (PID: %PID%) handle on "%Path%"!
             } Else {
                 i := 1
@@ -209,29 +82,6 @@ Gui_FileHandles_CtrlEvt(CtrlHwnd:=0, GuiEvent:="", EventInfo:="", ErrLvl:="") {
                         i++
                 }
             }
-        }
-        Gui_FileHandles_CtrlEvt("Gui_FileHandles_ApplyFilter")
-    } Else If (ControlName = "Gui_FileHandles_CloseProcess") {
-        RowNumber := 0
-        Loop {
-            RowNumber := LV_GetNext(RowNumber)
-            If !RowNumber
-                Break
-            LV_GetText(PID, RowNumber, 3)
-            Process, Close, %PID%
-            ;Process, WaitClose, %PID%, 5 ;wait up to 5 secs until process closes
-            ;If ErrorLevel {
-            ;    LV_GetText(Name, RowNumber, 2)
-            ;    MsgBox, Error: Unable to close %Name% (PID: %PID%)!
-            ;Else {
-                i := 1
-                Loop % DataArray.Length() {
-                    If (DataArray[i].PID = PID)
-                        DataArray.RemoveAt(i)
-                    Else
-                        i++
-                }
-            ;}
         }
         Gui_FileHandles_CtrlEvt("Gui_FileHandles_ApplyFilter")
     }
@@ -245,7 +95,6 @@ LoadLibraries() {
     DllCall("LoadLibrary", "Str", "Advapi32.dll", "UPtr")
     DllCall("LoadLibrary", "Str", "Ntdll.dll", "UPtr")
     DllCall("LoadLibrary", "Str", "Shell32.dll", "UPtr")
-    DllCall("LoadLibrary", "Str", "Iphlpapi.dll", "UPtr")
     DllCall("LoadLibrary", "Str", "psapi.dll", "UPtr")
 }
 ; ==================================================================================================================================
@@ -271,62 +120,8 @@ GetProcessFilePathByPID(PID) {
     DllCall("CloseHandle", "Ptr", hProcess)
     Return lpFilename
 }
-; ==================================================================================================================================
-GetExtendedTcpTable() {
-    ; https://msdn.microsoft.com/en-us/library/aa365928.aspx
-    Static AF_INET := 2, TCP_TABLE_OWNER_PID_ALL := 5
-    DllCall("Iphlpapi.dll\GetExtendedTcpTable", "Ptr", 0, "UInt*", pdwSize, "Int", 0, "UInt", AF_INET, "UInt", TCP_TABLE_OWNER_PID_ALL, "UInt", 0)
-    VarSetCapacity(pTcpTable, pdwSize, 0)
-    If (DllCall("Iphlpapi.dll\GetExtendedTcpTable", "Ptr", &pTcpTable, "UInt*", pdwSize, "Int", 0, "UInt", AF_INET, "UInt", TCP_TABLE_OWNER_PID_ALL, "UInt", 0) != 0)
-        Return (ErrorLevel := 1) & 0
- 
-    Offset := 0, TcpTable := []
-    Loop % NumGet(pTcpTable, "UInt") {
-        TcpTable[A_Index, "State"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-        TcpTable[A_Index, "LocalAddr"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-        TcpTable[A_Index, "LocalPort"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-        TcpTable[A_Index, "RemoteAddr"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-        TcpTable[A_Index, "RemotePort"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-        TcpTable[A_Index, "OwningPid"] := NumGet(&pTcpTable + (Offset+=4), "UInt")
-    }
-    Return TcpTable
-}
-; ==================================================================================================================================
-;SetScrollInfo(hwnd, ScrollInfoObj, fnBar:=1, fRedraw:=True) {
-;    ; NOT SUPPORTED ON WINDOWS XP
-;    ; https://msdn.microsoft.com/en-us/library/windows/desktop/bb787583%28v=vs.85%29.aspx
-;    VarSetCapacity(SCROLLINFO, ScrollInfoObj.Size, 0)
-;    NumPut(ScrollInfoObj.Size, SCROLLINFO, 0, "UInt") 
-;    NumPut(ScrollInfoObj.Mask, SCROLLINFO, 4, "UInt")
-;    NumPut(ScrollInfoObj.Min, SCROLLINFO, 8, "Int")
-;    NumPut(ScrollInfoObj.Max, SCROLLINFO, 12, "Int")
-;    NumPut(ScrollInfoObj.Page, SCROLLINFO, 16, "UInt")
-;    NumPut(ScrollInfoObj.Pos, SCROLLINFO, 20, "Int")
-;    NumPut(ScrollInfoObj.TrackPos, SCROLLINFO, 24, "Int")
-;    Return DllCall("User32.dll\SetScrollInfo", "Ptr", hwnd, "Int", fnBar, "Ptr", &SCROLLINFO)
-;}
-;; ==================================================================================================================================
-;GetScrollInfo(hwnd, fnBar:=1) {
-;    ; NOT SUPPORTED ON WINDOWS XP
-;    ; https://msdn.microsoft.com/en-us/library/windows/desktop/bb787583%28v=vs.85%29.aspx
-;    VarSetCapacity(SCROLLINFO, 28, 0)
-;    NumPut(28, SCROLLINFO, 0, "UInt") 
-;    NumPut(0x1F, SCROLLINFO, 4, "UInt") ; SIF_ALL
-;    If !DllCall("User32.dll\GetScrollInfo", "Ptr", hwnd, "Int", fnBar, "Ptr", &SCROLLINFO)
-;        Return False
-;
-;    ScrollInfoObj := {}
-;    ScrollInfoObj.Size := NumGet(SCROLLINFO, 0, "UInt")
-;    ScrollInfoObj.Mask := NumGet(SCROLLINFO, 4, "UInt")
-;    ScrollInfoObj.Min := NumGet(SCROLLINFO, 8, "Int")
-;    ScrollInfoObj.Max := NumGet(SCROLLINFO, 12, "Int")
-;    ScrollInfoObj.Page := NumGet(SCROLLINFO, 16, "UInt")
-;    ScrollInfoObj.Pos  := NumGet(SCROLLINFO, 20, "Int")
-;    ScrollInfoObj.TrackPos := NumGet(SCROLLINFO, 24, "Int")
-;
-;    Return ScrollInfoObj
-;}
-; ==================================================================================================================================
+
+;==================================================================================================================================
 OpenProcess(PID := 0, Privileges := -1) {
     Return DllCall("OpenProcess", "Uint", (Privileges = -1) ? 0x1F0FFF : Privileges, "Uint", False, "Uint", PID ? PID : DllCall("GetCurrentProcessId"))
 } 
@@ -393,37 +188,6 @@ GetAllFileHandleInfo(Callback:="") {
     If Callback
         Callback.Call(100)
     Return DataArray
-}
-; ==================================================================================================================================
-GetIconByPath(Path, FileExists:="") { ; fully qualified file path, result of FileExist on Path (optional)
-    ; SHGetFileInfo  -> http://msdn.microsoft.com/en-us/library/bb762179(v=vs.85).aspx
-    ; FIXME:
-    ;     For 32-bit AHK File System Redirection is automatically enabled when running on a 64-bit OS. 
-    ;     So files which exist in Sytem32 (64-bit) but not in SysWOW64 (32-bit) won't be found. 
-    ;     Also, all files which exist in both directories might address the wrong file. 
-    ;     So the file redirection must be disabled in this case (A_Is64bitOS && (A_PtrSize = 4)).
-    Static AW := A_IsUnicode ? "W" : "A"
-    Static cbSFI := A_PtrSize + 8 + (340 << !!A_IsUnicode)
-    Static IconType := 2
-    FileExists := FileExists ? FileExists : FileExist(Path)
-    If (FileExists) {
-        SplitPath, Path, , , FileExt
-        If (InStr(FileExists, "D") || FileExt = "exe" || FileExt = "ico" || FileExt = "") {
-            pszPath := Path
-            dwFileAttributes := 0x00
-            uFlags := 0x0101
-        } Else {
-            pszPath := "." FileExt
-            dwFileAttributes := 0x80
-            uFlags := 0x0111
-        }
-    } Else ; If the file is deleted reutrn an appropriate icon. 
-        Return LoadPicture(A_WinDir "\System32\imageres.dll", "Icon85 w16 h16", IconType) ; TODO: find a way to retrieve the icon just once and return it everytime it is needed
-        ;TODO: maybe remove this because other scripts might not want to get this icon when the file is not existent
-    
-    VarSetCapacity(SFI, cbSFI, 0) ; SHFILEINFO
-    DllCall("Shell32.dll\SHGetFileInfo" . AW, "Str", pszPath, "UInt", dwFileAttributes, "Ptr", &SFI, "UInt", cbSFI, "UInt", uFlags, "UInt")
-    Return NumGet(SFI, 0, "UPtr")
 }
 ; ==================================================================================================================================
 GetPathNameByHandle(hFile) {

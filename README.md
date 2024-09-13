@@ -1,5 +1,5 @@
 ## instance.unlock
-Allows the user to bypass the 16-client limit for RuneScape 3
+Bypasses the 16-client limit for RuneScape 3 by closing the process handles linked to the `instance.lock` file located at `C:\ProgramData\Jagex\launcher\instance.lock`
 
 #### Instructions
 1. Launch RuneScape 3 clients until you hit the limit
@@ -11,4 +11,6 @@ Allows the user to bypass the 16-client limit for RuneScape 3
  * Credits to T-vK for creating [WhoLockedMe](https://github.com/T-vK/WhoLockedMe/) which this script is forked from
 
 #### Requirements
-The script requires AutoHotKey 1.1
+The script requires AutoHotKey v1.1
+
+![](https://raw.githubusercontent.com/DartsOSRS/instance.unlock/master/Screenshot.png)
